@@ -26,6 +26,19 @@ spec:
     requests:
       storage: 100Mi
 ---
+apiVersion: v1
+kind: PersistentVolumeClaim
+metadata:
+  labels:
+    app: kimai-plugins
+  name: kimai-plugins
+spec:
+  accessModes:
+    - ReadWriteOnce
+  resources:
+    requests:
+      storage: 100Mi
+---
 apiVersion: apps/v1
 kind: Deployment
 metadata:
@@ -68,6 +81,9 @@ spec:
           name: kimai
           ports:
             - containerPort: 8001
+          volumeMounts:
+            - mountPath: /opt/kimai/var/plugins
+              name: kimai-plugins
         - env:
             - name: MYSQL_DATABASE
               valueFrom:
@@ -103,3 +119,6 @@ spec:
         - name: kimai-mysql
           persistentVolumeClaim:
             claimName: kimai-mysql
+        - name: kimai-plugins
+          persistentVolumeClaim:
+            claimName: kimai-plugins
