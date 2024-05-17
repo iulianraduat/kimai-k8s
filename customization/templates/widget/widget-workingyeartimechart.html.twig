@@ -1,0 +1,163 @@
+<!-- Copyright 2024 Iulian Radu <iulian-radu.com> -->
+<script src="https://cdnjs.cloudflare.com/ajax/libs/moment.js/2.30.1/moment.min.js"></script>
+<div class="card mb-0">
+    <div class="col-md-12">
+        {% embed '@theme/embeds/card.html.twig' %}
+            {% block box_title %}
+                {% if not title is empty %}My last 13 months of working time{% endif %}
+            {% endblock %}
+            {% block box_attributes %}
+                id="WorkingYearTimeChart" data-href="#" data-reload=""
+            {% endblock %}
+            {% block box_body %}
+                <div class="row">
+                    <div class="col-md-12">
+{% set chart_id = 'workingyeartimechart' %}
+{% set type = 'bar' %}
+{% set months = data.stats %}
+{% set gridColor = "#ccc" %}
+
+<div class="chart">
+    <canvas id="{{ chart_id }}" style="height: {{ config('theme.chart.height') }}px;"></canvas>
+</div>
+
+{% set len = months|length %}
+{% set sumh = 0 %}
+{% set summ = 0 %}
+{% for month in months -%}
+    {%- if month.year != data.year or month.month != data.month -%}
+	{% set sumh = sumh + month.billableDuration / 3600 %}
+	{% set summ = summ + month.totalRate %}
+    {%- endif -%}
+{%- endfor %}
+{% set avgh = 0 %}
+{% set avgm = 0 %}
+{% if len > 0 -%}
+    {% set avgh = sumh / len %}
+    {% set avgm = summ / len %}
+{%- endif %}
+
+            {% block footer %}
+                Average/month: {{ avgh|round(2) }}h | {{ avgm|round(2) }}€
+            {% endblock %}
+
+<script type="text/javascript">
+    var myChart = null;
+
+    var paintChart = function() {
+        myChart = new Chart(
+            document.getElementById('{{ chart_id }}').getContext('2d'), {
+                type: '{{ type }}',
+                data: {
+                    labels: [
+                        {% for month in months -%}
+                        moment('{{ month.year }}-{{ month.month }}-01').locale('en').format('MMM YYYY')
+                        {% if not loop.last %},{% endif -%}
+                        {%- endfor %}
+                    ],
+                    datasets: [
+                        {% for month in months -%}
+                        {% set activityColor = "#888" %}
+                        {
+			    label: moment('{{ month.year }}-{{ month.month }}-01').locale('en').format('MMM YYYY'),
+                            backgroundColor: '{{ activityColor }}',
+                            borderColor: '#fff',
+                            borderWidth: 1,
+                            data: [
+                    		{%- for loopMonth in months -%}
+                            	    {%- if loopMonth.year == month.year and loopMonth.month == month.month -%}
+                        		{{ month.billableDuration / 3600 }},
+                            	    {%- else -%}
+                                	0
+                            	    {%- endif -%}
+                    		    {% if not loop.last %},{% endif -%}
+                                {%- endfor -%}
+                            ],
+                            realData: {
+                		label: moment('{{ month.year }}-{{ month.month }}-01').locale('en').format('MMM YYYY'),
+                                billable: {{ month.billableDuration / 3600 }},
+                                totalRate: {{ month.totalRate }},
+                            }
+                        },
+                        {%- endfor %}
+                    ]
+                },
+                options: {
+                    maintainAspectRatio: true,
+                    responsive: true,
+                    barPercentage: 0.5,
+                    categoryPercentage: 0.9,
+                    scales: {
+                        x: {
+                            stacked: true,
+                            gridLines: {
+                                display: false
+                            },
+                        },
+                        y: {
+                            stacked: true,
+                            ticks: {
+                                beginAtZero: true
+                            },
+                            gridLines: {
+                                display: true,
+                                color: '{{ gridColor }}',
+                                lineWidth: 1
+                            }
+                        },
+                    },
+                    plugins:{
+                        legend: {
+                            display: false,
+                        },
+                        tooltips: {
+                            callbacks: {
+                                label: function(tooltipItem, data) {
+                                    var tooltipData = data.datasets[tooltipItem.datasetIndex].realData;
+                                    return ' {{ 'label.billable'|trans }}: ' + tooltipData.billable + ' h';
+                                },
+                                title: function(tooltipItems, data) {
+                                    var tooltipItem = tooltipItems[0];
+                                    return tooltipItem.label;
+                                },
+                                afterTitle: function(tooltipItems, data) {
+                                    return ' ';
+                                },
+                                footer: function(tooltipItems, data) {
+                                    var tooltipItem = tooltipItems[0];
+                                    var tooltipData = data.datasets[tooltipItem.datasetIndex].realData;
+                                    return '{{ 'stats.amountMonth'|trans }}: ' + tooltipData.totalRate + '€';
+                                },
+                                beforeFooter: function(tooltipItems, data) {
+                                    return ' ';
+                                },
+                            },
+                        }
+                    }
+                }
+            }
+        );
+    };
+
+    var destroyChart = function () {
+        myChart.destroy();
+    };
+
+    {% if app.request.xmlHttpRequest %}
+        paintChart();
+    {% else %}
+        document.addEventListener('kimai.initialized', paintChart);
+    {% endif %}
+</script>
+
+                    </div>
+                </div>
+            {% endblock %}
+        {% endembed %}
+    </div>
+</div>
+<script type="text/javascript">
+    document.addEventListener('kimai.initialized', function() {
+        KimaiPaginatedBoxWidget.create('#WorkingYearTimeChart');
+    });
+</script>
